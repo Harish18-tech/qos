@@ -170,11 +170,27 @@
               </table>
             </div>
             <div class="charts" style="margin-top:1rem;">
-              <canvas id="chartThroughput" aria-label="Throughput Chart"></canvas>
-              <canvas id="chartDelay" aria-label="Delay Chart"></canvas>
-              <canvas id="chartJitter" aria-label="Jitter Chart"></canvas>
-              <canvas id="chartLoss" aria-label="Loss Chart"></canvas>
-            </div>
+  <div class="chart-container">
+    <h3>Throughput</h3>
+    <canvas id="chartThroughput" aria-label="Throughput Chart"></canvas>
+  </div>
+
+  <div class="chart-container">
+    <h3>Delay</h3>
+    <canvas id="chartDelay" aria-label="Delay Chart"></canvas>
+  </div>
+
+  <div class="chart-container">
+    <h3>Jitter</h3>
+    <canvas id="chartJitter" aria-label="Jitter Chart"></canvas>
+  </div>
+
+  <div class="chart-container">
+    <h3>Packet Loss</h3>
+    <canvas id="chartLoss" aria-label="Loss Chart"></canvas>
+  </div>
+</div>
+
           </div>
         </div>
 </main>
