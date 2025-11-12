@@ -1,0 +1,382 @@
+<!-- Siva Raghavan M V -->
+<!-- Harish Ragavendra M -->
+<!-- Charis Chris R S -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>QoS Parameter Analyzer</title>
+<meta name="description" content="Simulate network flows, calculate QoS (throughput, delay, jitter, loss), and visualize compliance with scheduling policies (FIFO, PQ, WFQ).">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/script.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="topbar" role="banner" aria-label="Top Navigation">
+    <div class="brand" aria-label="Product">
+      <!-- QoS Parameter Analyzer Icon - Electric Network Style (24x24) -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 24 24"
+     width="32" height="32"
+     role="img" aria-labelledby="qosTitle qosDesc">
+  <title id="qosTitle">QoS Parameter Analyzer</title>
+  <desc id="qosDesc">Stylized circle with electric network symbol, representing network intelligence and Quality of Service control.</desc>
+
+  <!-- Outer Circle (router / system core) -->
+  <circle cx="12" cy="12" r="9" fill="#1F6FEB" stroke="#0A3C91" stroke-width="1.2"/>
+
+  <!-- Inner subtle ring -->
+  <circle cx="12" cy="12" r="6.5" fill="none" stroke="#A9C7F5" stroke-width="0.8"/>
+
+  <!-- Electric network pattern -->
+  <g stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Three main connection nodes -->
+    <circle cx="9" cy="9" r="0.9" fill="#FFFFFF"/>
+    <circle cx="15" cy="8" r="0.9" fill="#FFFFFF"/>
+    <circle cx="13" cy="15" r="0.9" fill="#FFFFFF"/>
+
+    <!-- Connecting lines (electric network pattern) -->
+    <path d="M9 9 L12 11 L15 8 M12 11 L13 15" fill="none"/>
+  </g>
+</svg>
+
+      <span>QoS Parameter Analyzer</span>
+      <span class="muted" style="font-weight:500;">(FIFO • PQ • WFQ)</span>
+    </div>
+    <nav class="actionbar" aria-label="Page actions">
+      <button class="btn ghost" id="btnLearn" aria-haspopup="dialog" title="Learn">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5V6l8-3 8 3v13.5M12 3v16.5" stroke-width="1.6"/></svg>
+        Learn
+      </button>
+      <button class="btn ghost" id="btnDeveloped" aria-haspopup="dialog" title="Developed by">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4" stroke-width="1.6"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6" stroke-width="1.6"/></svg>
+        Developed by
+      </button>
+      <button class="btn ghost" id="btnHelp" aria-haspopup="dialog" title="Help">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="1.6"/><path d="M9.5 9a3 3 0 1 1 3.5 3v1" stroke-width="1.6"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg>
+        Help
+      </button>
+      <button class="btn primary" id="btnDownload" title="Download report">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v10m0 0l3.5-3.5M12 13L8.5 9.5M4 16v3h16v-3" stroke-width="1.6"/></svg>
+        Download
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+    <section class="card" aria-labelledby="simHdr">
+      <div class="hdr">
+        <h2 id="simHdr">Simulation Inputs</h2>
+        <div>
+          <button class="btn" id="btnAddFlow" title="Add Flow">+ Add Flow</button>
+          <button class="btn" id="btnReset" title="Reset">Reset</button>
+          <button class="btn primary" id="btnSimulate" title="Run Simulation">Simulate</button>
+        </div>
+      </div>
+      <div class="body">
+        <div class="row">
+          <div class="field" style="grid-column: span 3;">
+            <label for="linkRate">Link Capacity (Mbps)</label>
+            <input type="number" id="linkRate" min="1" step="1" value="50">
+            <div class="inline-help">Total output link speed.</div>
+          </div>
+          <div class="field" style="grid-column: span 3;">
+            <label for="bufferPkts">Buffer Size (packets)</label>
+            <input type="number" id="bufferPkts" min="1" step="1" value="200">
+            <div class="inline-help">Max queue length across all flows.</div>
+          </div>
+          <div class="field" style="grid-column: span 3;">
+            <label for="simDuration">Simulation Duration (ms)</label>
+            <input type="number" id="simDuration" min="100" step="100" value="10000">
+            <div class="inline-help">Default 10,000 ms (10 sec).</div>
+          </div>
+          <div class="field" style="grid-column: span 3;">
+            <label for="sched">Scheduling Policy</label>
+            <select id="sched">
+              <option value="FIFO">FIFO (First-In First-Out)</option>
+              <option value="PQ">Priority Queuing (High→Low)</option>
+              <option value="WFQ">Weighted Fair Queuing (DRR approx.)</option>
+            </select>
+            <div class="inline-help">Select a scheduler for the output link.</div>
+          </div>
+        </div>
+
+        <div class="card" style="border:none; box-shadow:none; margin:.25rem 0;">
+          <div class="body" style="padding:0;">
+            <div style="overflow:auto; max-height: 44vh;">
+              <table id="flowsTable" aria-label="Flow Inputs">
+                <thead>
+                  <tr>
+                    <th>Flow</th>
+                    <th>Type</th>
+                    <th>Packet Size (B)</th>
+                    <th>Inter-arrival (ms)</th>
+                    <th>Priority (PQ)</th>
+                    <th>Weight (WFQ)</th>
+                    <th>Delay Thr (ms)</th>
+                    <th>Jitter Thr (ms)</th>
+                    <th>Loss Thr (%)</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="flowsBody">
+                </tbody>
+              </table>
+            </div>
+            <div class="inline-help" style="margin-top:.5rem;">
+              Tip: For VoIP, use small packets & short inter-arrivals; Video medium; Data large & bursty.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <aside class="card" aria-labelledby="noteHdr">
+      <div class="hdr"><h2 id="noteHdr">Project Notes</h2></div>
+      <div class="body">
+        <p class="muted"><strong>Model</strong>: Discrete-event simulation of packets across a single output link with buffer.
+          Schedulers supported: FIFO, Priority Queuing (1=High..3=Low), and a DRR-based approximation of WFQ.</p>
+        <ul class="muted">
+          <li><strong>Delay</strong> = queue wait + service time</li>
+          <li><strong>Jitter</strong> = mean absolute difference of consecutive packet delays</li>
+          <li><strong>Loss</strong> when buffer overflows</li>
+          <li><strong>Throughput</strong> = delivered bits / simulation time</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+  <div class="card" style="margin-top:1rem;">
+          <div class="hdr"><h2>Results</h2><span id="simStatus" class="muted">Waiting for simulation…</span></div>
+          <div class="body">
+            <div style="overflow:auto;">
+              <table aria-label="Results Table">
+                <thead>
+                  <tr>
+                    <th>Flow</th>
+                    <th>Avg Throughput (Mbps)</th>
+                    <th>Avg Delay (ms)</th>
+                    <th>Jitter (ms)</th>
+                    <th>Loss (%)</th>
+                    <th>QoS</th>
+                  </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+              </table>
+            </div>
+            <div class="charts" style="margin-top:1rem;">
+              <canvas id="chartThroughput" aria-label="Throughput Chart"></canvas>
+              <canvas id="chartDelay" aria-label="Delay Chart"></canvas>
+              <canvas id="chartJitter" aria-label="Jitter Chart"></canvas>
+              <canvas id="chartLoss" aria-label="Loss Chart"></canvas>
+            </div>
+          </div>
+        </div>
+</main>
+
+<div class="modal" id="modalLearn" role="dialog" aria-modal="true" aria-labelledby="learnTitle">
+  <div class="dialog">
+    <div class="head">
+      <h3 id="learnTitle">Learn</h3>
+      <button class="close" data-close="modalLearn" aria-label="Close">✕</button>
+    </div>
+    <div class="content">
+      <h4>Watch: Understanding QoS Concepts</h4>
+      <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;margin:1rem 0;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+        <iframe 
+          src="https://www.youtube.com/embed/-cGMmSx9Ag0?si=p4DkJV2MTy2Wj62i" 
+          title="QoS Concepts - Sample Video" 
+          frameborder="0" 
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+          referrerpolicy="strict-origin-when-cross-origin" 
+          allowfullscreen
+          style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;">
+        </iframe>
+      </div>
+
+      <h4>Materials</h4>
+      <p>
+        <strong>Quality of Service (QoS)</strong> refers to the ability of a network to provide differentiated handling and performance 
+        to various types of traffic. In modern communication systems—especially where real-time applications like voice, video, and 
+        data coexist—QoS ensures that critical services receive the bandwidth, delay, and reliability they require.
+      </p>
+
+      <p>
+        In this simulation-based project, we model a network output link shared by multiple traffic flows (VoIP, Video, and Data). 
+        Each flow generates packets at specific rates (determined by packet size and inter-arrival time) and is subjected to the 
+        selected scheduling discipline. The simulator manages packet arrivals, queueing, and transmission while computing essential 
+        QoS metrics such as <em>throughput</em>, <em>delay</em>, <em>jitter</em>, and <em>packet loss</em>. 
+      </p>
+
+      <p>
+        The theoretical foundation of this system lies in <strong>queueing theory</strong> and <strong>packet scheduling algorithms</strong>. 
+        A queue represents the waiting line of packets contending for transmission on a shared link. Depending on the scheduling 
+        strategy, packets are either served in arrival order, by strict priority, or according to weighted fairness. The simulator 
+        demonstrates how these policies impact the end-to-end service quality of each traffic type.
+      </p>
+
+      <h5>Scheduling Algorithms Explained</h5>
+      <ul>
+        <li>
+          <strong>FIFO (First-In First-Out):</strong> The simplest discipline, where packets are transmitted in the order they arrive. 
+          Although easy to implement, FIFO does not differentiate between traffic classes, meaning high-priority traffic (e.g., VoIP) 
+          may experience unacceptable delays if low-priority flows dominate the link.
+        </li>
+        <li>
+          <strong>PQ (Priority Queuing):</strong> Each traffic class is assigned a priority level. The scheduler always serves the 
+          highest-priority queue first. While this guarantees low delay for critical flows, it can cause starvation of lower-priority 
+          traffic under heavy load.
+        </li>
+        <li>
+          <strong>WFQ (Weighted Fair Queuing):</strong> A fairness-oriented scheduler that allocates bandwidth proportionally to each 
+          flow’s weight. Implemented here via <em>Deficit Round Robin (DRR)</em>, WFQ approximates fair bandwidth distribution while 
+          accounting for variable packet sizes. This ensures balanced performance across flows with minimal starvation.
+        </li>
+      </ul>
+
+      <p>
+        Each scheduler impacts performance differently. For instance, VoIP requires low delay (<150 ms) and low jitter (<30 ms), 
+        Video demands higher throughput but moderate delay tolerance, and Data transfers (like FTP or downloads) can tolerate 
+        higher delay but require reliability. The simulator evaluates whether each flow meets its QoS thresholds based on measured metrics.
+      </p>
+
+      <div class="packet-lane" aria-hidden="true" style="margin:1rem 0;">
+        <div class="router">R</div>
+        <div class="packet p1" style="--delay:.1s"></div>
+        <div class="packet p2" style="--delay:.8s"></div>
+        <div class="packet p3" style="--delay:1.6s"></div>
+        <div class="packet p1" style="--delay:2.4s"></div>
+        <div class="packet p2" style="--delay:3.0s"></div>
+        <div class="packet p3" style="--delay:3.8s"></div>
+      </div>
+
+      <p>
+        Overall, this model offers a clear, visual way to understand how buffering, queue management, and scheduler choice 
+        influence QoS metrics. It bridges the gap between theory and practical understanding, making it valuable for 
+        students, researchers, and professionals studying computer networks.
+      </p>
+
+      <h4>How We Built This</h4>
+      <p>
+        The <strong>QoS Parameter Analyzer</strong> was developed as an educational tool to visualize and analyze the impact of 
+        scheduling on network performance. The interface follows a modern, Fluent-inspired design with accessibility and 
+        responsiveness as key principles.
+      </p>
+      <ol>
+        <li>Designed a clean and responsive user interface using <strong>HTML5, CSS3 (Flex & Grid)</strong>, and accessible semantics for screen readers.</li>
+        <li>Implemented a <strong>discrete-event simulation engine</strong> to handle packet generation, queueing, and service under FIFO, PQ, and DRR-based WFQ scheduling policies.</li>
+        <li>Each packet event tracks timestamps for <em>arrival</em>, <em>queueing delay</em>, and <em>departure</em> to compute precise QoS metrics.</li>
+        <li>Visualized performance results (throughput, delay, jitter, loss) using the <strong>Canvas 2D API</strong> with threshold-based coloring to show compliance.</li>
+        <li>Enabled users to <strong>download detailed reports</strong> (in pdf) summarizing simulation parameters and computed metrics.</li>
+        <li>Ensured cross-device compatibility and keyboard navigation to support all learners effectively.</li>
+      </ol>
+
+      <h4>References</h4>
+      <ul>
+        <li>Kurose, J. F., & Ross, K. W. (2021). <em>Computer Networking: A Top-Down Approach</em> (8th ed.). Pearson Education.</li>
+        <li>Tanenbaum, A. S., & Wetherall, D. J. (2011). <em>Computer Networks</em> (5th ed.). Pearson Prentice Hall.</li>
+        <li>RFC 4594. (2006). <em>Configuration Guidelines for DiffServ Service Classes</em>. Internet Engineering Task Force (IETF).</li>
+        <li>RFC 3393. (2002). <em>IP Packet Delay Variation Metric for IP Performance Metrics (IPPM)</em>. IETF.</li>
+        <li>Stallings, W. (2017). <em>Data and Computer Communications</em> (10th ed.). Pearson.</li>
+        <li>Floyd, S., & Jacobson, V. (1993). Random Early Detection Gateways for Congestion Avoidance. <em>IEEE/ACM Transactions on Networking</em>, 1(4), 397–413.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal" id="modalDeveloped" role="dialog" aria-modal="true" aria-labelledby="devTitle">
+  <div class="dialog">
+    <div class="head">
+      <h3 id="devTitle">Developed by</h3>
+      <button class="close" data-close="modalDeveloped" aria-label="Close">✕</button>
+    </div>
+    <div class="content">
+      <div class="dev-grid" id="devGrid">
+        <div class="dev-card">
+          <div class="avatar" aria-hidden="true"><img src="assets/charis.jpg"></div>
+          <div>
+            <div><strong>Charis Chris R S</strong></div>
+            <div class="lo">Reg No: <em>24BCE5276</em></div>
+          </div>
+        </div>
+        <div class="dev-card">
+          <div class="avatar" aria-hidden="true"><span><img src="assets/harish.png"></span></div>
+          <div>
+            <div><strong>Harish Ragavendra M</strong></div>
+            <div class="lo">Reg No: <em>24BCE5295</em></div>
+          </div>
+        </div>
+        <div class="dev-card">
+          <div class="avatar" aria-hidden="true"><img src="assets/mvsr.webp"></div>
+          <div>
+            <div><strong>Siva Raghavan M V</strong></div>
+            <div class="lo">Reg No: <em>24BCE5299</em></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="modalHelp" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="dialog">
+    <div class="head">
+      <h3 id="helpTitle">Help</h3>
+      <button class="close" data-close="modalHelp" aria-label="Close">✕</button>
+    </div>
+    <div class="content">
+      <h4>How to use</h4>
+      <ol>
+        <li><strong>Set link capacity, buffer, duration</strong> at the top.</li>
+        <li><strong>Add flows</strong> (VoIP/Video/Data…) and set packet size (bytes) and inter-arrival (ms). For PQ, set priority (1=High). For WFQ, set weights.</li>
+        <li><strong>Define QoS thresholds</strong> per flow (delay, jitter, loss).</li>
+        <li>Select <strong>Scheduling Policy</strong> and click <strong>Simulate</strong>.</li>
+        <li>Review the <strong>Results table</strong> and <strong>charts</strong> to see compliance.</li>
+        <li>Click <strong>Download</strong> to export inputs, outputs, and the step-by-step procedure.</li>
+      </ol>
+
+      <h4>Example inputs</h4>
+      <ul>
+        <li>VoIP: 160 B, inter-arrival 20 ms, priority 1, weight 5; thresholds: delay ≤ 150 ms, jitter ≤ 30 ms, loss ≤ 1%</li>
+        <li>Video: 1200 B, inter-arrival 10 ms, priority 2, weight 3; thresholds: delay ≤ 200 ms, jitter ≤ 50 ms, loss ≤ 1%</li>
+        <li>Data: 1500 B, inter-arrival 40 ms, priority 3, weight 1; thresholds: delay ≤ 1000 ms, jitter ≤ 100 ms, loss ≤ 5%</li>
+      </ul>
+
+      <h4>Execution flow</h4>
+      <p>The simulator generates packet arrivals for each flow until the duration elapses, enqueues them subject to a shared buffer, schedules them based on the selected policy, and records completion times.</p>
+
+      <h4>What is processed</h4>
+      <ul>
+        <li><strong>Service time</strong> per packet = size (bits) / link rate (bps)</li>
+        <li><strong>Queueing delay</strong> accumulates when the link is busy</li>
+        <li><strong>Drops</strong> occur when total enqueued packets exceed buffer size</li>
+      </ul>
+
+      <h4>Interpret results</h4>
+      <ul>
+        <li><strong>Throughput</strong> (Mbps): delivered bits / total simulation time</li>
+        <li><strong>Delay</strong> (ms): mean end-to-end per flow</li>
+        <li><strong>Jitter</strong> (ms): mean absolute difference between consecutive packet delays</li>
+        <li><strong>Loss</strong> (%): (dropped / total) × 100</li>
+        <li><strong>QoS pill</strong>: Green = meets all thresholds; Red = one or more violations</li>
+      </ul>
+
+      <h4>What the charts depict</h4>
+      <ul>
+        <li>Throughput bars per flow (higher is better)</li>
+        <li>Delay, Jitter, Loss bars with threshold lines (green if under threshold)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<footer>
+  © 2025 QoS Parameter Analyzer - Computer Networks Project
+</footer>
+</body>
+</html>
